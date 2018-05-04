@@ -4,6 +4,6 @@
     "description": "Pixi.js library for using vector art created in Omber that's saved in glTF 2.0 format",
     "author": "Ming-Yee Iu",
     "scripts": {
-        "start": "http-server . -p 8080"
+        "start": "http-server . -p 8080 -c-1"
     }
 }

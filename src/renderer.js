@@ -45,6 +45,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         // Turn on blending with back-to-front rendering and without pre-multiplied alpha
         this.renderer.state.setBlend(true);
         this.renderer.state.setBlendMode(PIXI.BLEND_MODES.NORMAL_NPM);
+		this.zNext = 1 - this.zBufferSeparation;
 	}
 	stop()
 	{
@@ -64,7 +65,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         if (gltf.vaosSetup) return;
         const renderer = this.renderer;
         
-        VectorMeshRenderer.walkScenePrimitives(gltf.json, (primitive) => {
+        gltf.walkScenePrimitives((primitive) => {
             // Omber GLTF data uses vertex colors (with alpha) and positions
             // and triangle mode
             if (!('COLOR_0' in primitive.attributes)) return;
@@ -127,7 +128,15 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     }
     renderVaos(gl, sprite, gltf) 
     {
-        VectorMeshRenderer.walkScenePrimitives(gltf.json, (primitive) => {
+    	let zScale = -1.0;
+    	if (gltf.zSeparation)
+		{
+            zScale = -1.0 / gltf.zSeparation * this.zBufferSeparation;
+		}
+        let zOffset = -gltf.max[2] * zScale;
+        let zSkip = (gltf.max[2] - gltf.min[2] + gltf.zSeparation) * zScale;
+
+    	gltf.walkScenePrimitives((primitive) => {
             if (!primitive.vao) return;
             // Multiply the MVP matrix in advance instead of in shader
             this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(sprite.worldTransform);
@@ -137,54 +146,31 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 			matrix[2] = 0;
 			matrix[3] = 0;
 			matrix[4] = this.shader.transformMatrix.c;
-			matrix[5] = this.shader.transformMatrix.d;
+			matrix[5] = -this.shader.transformMatrix.d;
 			matrix[6] = 0;
 			matrix[7] = 0;
 			matrix[8] = 0;
 			matrix[9] = 0;
-			matrix[10] = -1;
+			matrix[10] = zScale;
 			matrix[11] = 0;
 			matrix[12] = this.shader.transformMatrix.tx;
 			matrix[13] = this.shader.transformMatrix.ty;
-			matrix[14] = 0;
+			matrix[14] = zOffset + this.zNext;
 			matrix[15] = 1;
             this.shader.uniforms.transformMatrix = matrix;
             this.renderer.bindVao(primitive.vao);
             primitive.vao.draw(this.renderer.gl.TRIANGLES, primitive.vaoCount, 0);
             
         });
+    	this.zNext += zSkip;
     }
     
-    
-    static walkScenePrimitives(gltfJson, primitiveHandler) 
-    {
-        let sceneNum = 0;
-        if ('scene' in gltfJson) sceneNum = gltfJson.scene;
-        const scene = gltfJson.scenes[sceneNum];
-        scene.nodes.forEach( node => this.walkNodesPrimitives(gltfJson, gltfJson.nodes[node], primitiveHandler));
-    }
-    static walkNodesPrimitives(gltfJson, node, primitiveHandler) 
-    {
-        if ('children' in node) 
-        {
-            node.children.forEach( node => this.walkNodesPrimitives(gltfJson, gltfJson.nodes[node], primitiveHandler));
-        }
-        // TODO: Handle transformation matrices
-        if ('mesh' in node) 
-        {
-            this.walkMeshPrimitives(gltfJson.meshes[node.mesh], primitiveHandler);
-        }
-    }
-    static walkMeshPrimitives(mesh, primitiveHandler) 
-    {
-        if ('primitives' in mesh) 
-        {
-            mesh.primitives.forEach( primitive => primitiveHandler(primitive) );
-        }
-    }
-
 }
 VectorMeshRenderer.prototype.shader = null;
+VectorMeshRenderer.prototype.zNext = 0.0;
+// Rescale things to use as much of the depth buffer as possible
+// (assuming a 16-bit linear depth buffer)
+VectorMeshRenderer.prototype.zBufferSeparation = 1.0 / 32000;
 
 
 export class VectorMesh extends PIXI.Sprite 
