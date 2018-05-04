@@ -133,36 +133,53 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		{
             zScale = -1.0 / gltf.zSeparation * this.zBufferSeparation;
 		}
-        let zOffset = -gltf.max[2] * zScale;
+        let zOffset = -gltf.max[2] * zScale + this.zNext;
         let zSkip = (gltf.max[2] - gltf.min[2] + gltf.zSeparation) * zScale;
 
+        // Render opaque objects first
     	gltf.walkScenePrimitives((primitive) => {
-            if (!primitive.vao) return;
-            // Multiply the MVP matrix in advance instead of in shader
-            this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(sprite.worldTransform);
-			let matrix = this.shader.transformMatrix4x4;
-			matrix[0] = this.shader.transformMatrix.a;
-			matrix[1] = this.shader.transformMatrix.b;
-			matrix[2] = 0;
-			matrix[3] = 0;
-			matrix[4] = this.shader.transformMatrix.c;
-			matrix[5] = -this.shader.transformMatrix.d;
-			matrix[6] = 0;
-			matrix[7] = 0;
-			matrix[8] = 0;
-			matrix[9] = 0;
-			matrix[10] = zScale;
-			matrix[11] = 0;
-			matrix[12] = this.shader.transformMatrix.tx;
-			matrix[13] = this.shader.transformMatrix.ty;
-			matrix[14] = zOffset + this.zNext;
-			matrix[15] = 1;
-            this.shader.uniforms.transformMatrix = matrix;
-            this.renderer.bindVao(primitive.vao);
-            primitive.vao.draw(this.renderer.gl.TRIANGLES, primitive.vaoCount, 0);
-            
+    		if (!('material' in primitive)) return;
+    		const mat = gltf.json.materials[primitive.material];
+    		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
+    			this.renderPrimitive(primitive, sprite, zScale, zOffset);
+        });
+    	// Then render transparent ones in order
+    	gltf.walkScenePrimitives((primitive) => {
+    		if ('material' in primitive)
+			{
+        		const mat = gltf.json.materials[primitive.material];
+        		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
+        			return;
+			}
+            this.renderPrimitive(primitive, sprite, zScale, zOffset);
         });
     	this.zNext += zSkip;
+    }
+    renderPrimitive(primitive, sprite, zScale, zOffset)
+    {
+        if (!primitive.vao) return;
+        // Multiply the MVP matrix in advance instead of in shader
+        this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(sprite.worldTransform);
+		let matrix = this.shader.transformMatrix4x4;
+		matrix[0] = this.shader.transformMatrix.a;
+		matrix[1] = this.shader.transformMatrix.b;
+		matrix[2] = 0;
+		matrix[3] = 0;
+		matrix[4] = this.shader.transformMatrix.c;
+		matrix[5] = -this.shader.transformMatrix.d;
+		matrix[6] = 0;
+		matrix[7] = 0;
+		matrix[8] = 0;
+		matrix[9] = 0;
+		matrix[10] = zScale;
+		matrix[11] = 0;
+		matrix[12] = this.shader.transformMatrix.tx;
+		matrix[13] = this.shader.transformMatrix.ty;
+		matrix[14] = zOffset;
+		matrix[15] = 1;
+        this.shader.uniforms.transformMatrix = matrix;
+        this.renderer.bindVao(primitive.vao);
+        primitive.vao.draw(this.renderer.gl.TRIANGLES, primitive.vaoCount, 0);
     }
     
 }
