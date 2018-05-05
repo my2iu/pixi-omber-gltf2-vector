@@ -31,6 +31,11 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 	constructor(renderer) 
     {
 		super(renderer);
+		this.renderer.addListener('prerender', () => {
+			// Reset the positions of objects in z buffer at the start of
+			// rendering
+			this.zNext = 1 - this.zBufferSeparation; 
+		});
 	}
 	onContextChange() 
     {
@@ -45,7 +50,6 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         // Turn on blending with back-to-front rendering and without pre-multiplied alpha
         this.renderer.state.setBlend(true);
         this.renderer.state.setBlendMode(PIXI.BLEND_MODES.NORMAL_NPM);
-		this.zNext = 1 - this.zBufferSeparation;
 	}
 	stop()
 	{
@@ -133,8 +137,8 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		{
             zScale = -1.0 / gltf.zSeparation * this.zBufferSeparation;
 		}
-        let zOffset = -gltf.max[2] * zScale + this.zNext;
-        let zSkip = (gltf.max[2] - gltf.min[2] + gltf.zSeparation) * zScale;
+        let zOffset = -gltf.min[2] * zScale + this.zNext;
+        let zSkip = (gltf.max[2] - gltf.min[2]) * zScale - this.zBufferSeparation;
 
         // Render opaque objects first
     	gltf.walkScenePrimitives((primitive) => {
@@ -198,6 +202,21 @@ export class VectorMesh extends PIXI.Sprite
         if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
 		this.pluginName = 'omber';
+		this.hits = new PIXI.Rectangle(this.gltf.min[0], this.gltf.min[1], 
+				this.gltf.max[0] - this.gltf.min[0],
+				this.gltf.max[1] - this.gltf.min[1]); 
+	}
+	// Omber isn't a good fit for the height/width/hitarea model used by Pixi.js
+	// because its glTF meshes have a default anchor point that isn't in the upper-left corner.
+	get width() {
+		return this.gltf.max[1] - this.gltf.min[1];
+	}
+	get height() {
+		return this.gltf.max[2] - this.gltf.min[2];
+	}
+	get hitArea()
+	{
+		return this.hits;
 	}
 }
 
