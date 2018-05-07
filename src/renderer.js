@@ -31,6 +31,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 	constructor(renderer) 
     {
 		super(renderer);
+		this.isActive = false;
 		this.renderer.addListener('prerender', () => {
 			// Reset the positions of objects in z buffer at the start of
 			// rendering
@@ -45,16 +46,24 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 	start()
 	{
 		super.start();
-		this.renderer.state.push();
-		this.renderer.state.setDepthTest(true);
-        // Turn on blending with back-to-front rendering and without pre-multiplied alpha
-        this.renderer.state.setBlend(true);
-        this.renderer.state.setBlendMode(PIXI.BLEND_MODES.NORMAL_NPM);
+		if (!this.isActive) {
+			// If the VectorMeshRenderer is the active renderer when finished rendering,
+			// then stop() won't be called at the end of the rendering. But start() will
+			// still be called at the start of the next rendering, so we have to avoid
+			// push new state
+			this.renderer.state.push();
+			this.renderer.state.setDepthTest(true);
+	        // Turn on blending with back-to-front rendering and without pre-multiplied alpha
+	        this.renderer.state.setBlend(true);
+	        this.renderer.state.setBlendMode(PIXI.BLEND_MODES.NORMAL_NPM);
+		}
+		this.isActive = true;
 	}
 	stop()
 	{
 		super.stop();
 		this.renderer.state.pop();
+		this.isActive = false;
 	}
 	render(sprite) 
     {
@@ -169,7 +178,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		matrix[1] = this.shader.transformMatrix.b;
 		matrix[2] = 0;
 		matrix[3] = 0;
-		matrix[4] = this.shader.transformMatrix.c;
+		matrix[4] = -this.shader.transformMatrix.c;
 		matrix[5] = -this.shader.transformMatrix.d;
 		matrix[6] = 0;
 		matrix[7] = 0;
@@ -202,7 +211,7 @@ export class VectorMesh extends PIXI.Sprite
         if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
 		this.pluginName = 'omber';
-		this.hits = new PIXI.Rectangle(this.gltf.min[0], this.gltf.min[1], 
+		this.hits = new PIXI.Rectangle(this.gltf.min[0], -this.gltf.max[1], 
 				this.gltf.max[0] - this.gltf.min[0],
 				this.gltf.max[1] - this.gltf.min[1]); 
 	}
