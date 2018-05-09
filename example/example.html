@@ -1,61 +1,61 @@
 <html>
-	<head>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.3/pixi.min.js"></script>
-		<script src="../build/pixi-omber-gltf2-vector.js"></script>
-		<script>
-			let app;
-			
-			function whenReady()
-			{
-				// Create a PIXI canvas where things will be drawn
-				app = new PIXI.Application({width: 640, height: 480, antialias: true});
-				document.body.appendChild(app.view);
-				
-				// Start loading things
-				PIXI.loader
-			        .add('refresh.glb')
-			        .add('girl.glb')
-			        .load(start);
-			}
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.3/pixi.min.js"></script>
+        <script src="../build/pixi-omber-gltf2-vector.js"></script>
+        <script>
+            let app;
+            
+            function whenReady()
+            {
+                // Create a PIXI canvas where things will be drawn
+                app = new PIXI.Application({width: 640, height: 480, antialias: true});
+                document.body.appendChild(app.view);
+                
+                // Start loading things
+                PIXI.loader
+                    .add('refresh.glb')
+                    .add('girl.glb')
+                    .load(start);
+            }
 
-			function start(loader, resources)
-			{
-				// Use a VectorMesh instead of a Sprite to display the vector graphics
-				let mesh = new PIXI.omber.VectorMesh(resources['girl.glb'].gltf);
-			    mesh.x = 320;
-			    mesh.y = 240;
-			    mesh.scale.set(2, 2);
-			    app.stage.addChild(mesh);
+            function start(loader, resources)
+            {
+                // Use a VectorMesh instead of a Sprite to display the vector graphics
+                let mesh = new PIXI.omber.VectorMesh(resources['girl.glb'].gltf);
+                mesh.x = 320;
+                mesh.y = 240;
+                mesh.scale.set(2, 2);
+                app.stage.addChild(mesh);
 
-			    // Use the vector drawing like a sprite that can be clicked on to restart the animation
-			    let button = new PIXI.omber.VectorMesh(resources['refresh.glb'].gltf);
-			    button.x = 600;
-			    button.y = 40;
-			    button.scale.set(0.2, 0.2);
-			    button.interactive = true;
-			    button.buttonMode = true;
-			    button.on('pointerdown', (evt) => {
-			    	mesh.scale.set(2, 2);
-			    });
-			    app.stage.addChild(button);
+                // Use the vector drawing like a sprite that can be clicked on to restart the animation
+                let button = new PIXI.omber.VectorMesh(resources['refresh.glb'].gltf);
+                button.x = 600;
+                button.y = 40;
+                button.scale.set(0.2, 0.2);
+                button.interactive = true;
+                button.buttonMode = true;
+                button.on('pointerdown', (evt) => {
+                    mesh.scale.set(2, 2);
+                });
+                app.stage.addChild(button);
 
-			    // Regular PIXI sprites, text, and other objects still work
-			    let text = new PIXI.Text('Accelerated vector graphics in PIXI.js through glTF files exported from Omber', {fontSize: 16, fontWeight: 'bold', fill:0xffffff});
-			    text.anchor.set(0.5, 1);
-			    text.x = 320;
-			    text.y = 460;
-			    app.stage.addChild(text);
-			    
-			    // Animate the scale of the character and the rotation of the refresh button 
-			    app.ticker.add(delta => {
-		            mesh.scale.set(mesh.scale.x * Math.pow(0.995, delta), mesh.scale.y * Math.pow(0.995, delta));
-		            button.rotation += 0.02 * delta;
-			    });
-			}
-			
-			window.onload = whenReady;
-		</script>
-	</head>
-	<body>
-	</body>
+                // Regular PIXI sprites, text, and other objects still work
+                let text = new PIXI.Text('Accelerated vector graphics in PIXI.js through glTF files exported from Omber', {fontSize: 16, fontWeight: 'bold', fill:0xffffff});
+                text.anchor.set(0.5, 1);
+                text.x = 320;
+                text.y = 460;
+                app.stage.addChild(text);
+                
+                // Animate the scale of the character and the rotation of the refresh button 
+                app.ticker.add(delta => {
+                    mesh.scale.set(mesh.scale.x * Math.pow(0.995, delta), mesh.scale.y * Math.pow(0.995, delta));
+                    button.rotation += 0.02 * delta;
+                });
+            }
+            
+            window.onload = whenReady;
+        </script>
+    </head>
+    <body>
+    </body>
 </html>
