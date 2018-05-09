@@ -5,7 +5,7 @@
     "author": "Ming-Yee Iu",
     "scripts": {
         "start": "http-server . -p 8080 -c-1",
-        "build": "rollup src/index.js -m -f iife -o dist/rolledup.js -n PixiOmber",
+        "build": "rollup src/index.js -m -f iife -o build/pixi-omber-gltf2-vector.js -n PIXI.omber",
         "prepublishOnly": "npm run build"
     },
     "devDependencies": {

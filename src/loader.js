@@ -101,7 +101,11 @@ export function omberGlbLoad(resource, next)
 }
 
 
-
+// New loaders will be configured to support loading .glb files.
 PIXI.loaders.Resource.setExtensionXhrType('glb', PIXI.loaders.Resource.XHR_RESPONSE_TYPE.BUFFER);
 PIXI.loaders.Resource.setExtensionLoadType('glb', PIXI.loaders.Resource.LOAD_TYPE.XHR);
 
+// The premade shared PIXI loader has already been created though (only new loaders 
+// will have .glb support added to it automatically), so .glb support needs to be 
+// added to the shared PIXI loader separately.
+PIXI.loader.use(omberGlbLoad);
