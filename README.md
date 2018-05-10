@@ -12,7 +12,7 @@ The [example](example/) directory contains a simple of example that uses the plu
 
 ### 1. Export vector art
 
-The plugin loads vector art that has been converted into 3d meshes that can be rendered quickly by 3d graphics hardware. Use the Omber vector dawing program to create your vector art and then export your art to glTF format using these suggested settings. The plugin currently expects data to exported as a .GLB file and NOT using floating-point colors. It is recommended that you use 1 pixel per meter for the scale, and to output meshes using the "Merge opaque meshes only" setting. When exporting, be sure to note the position of your drawing relative to the origin point of x=0, y=0. When displaying vector art in Pixi, the art will be centered around this origin point, so you may have to move your drawing before exporting so that the origin point is a reasonable location. 
+The plugin loads vector art that has been converted into 3d meshes that can be rendered quickly by 3d graphics hardware. Use the Omber vector dawing program to create your vector art and then export your art to glTF format using these suggested [settings](https://www.wobastic.com/omber/help/gltf.html). The plugin currently expects data to exported as a .GLB file and NOT using floating-point colors. It is recommended that you use 1 pixel per meter for the scale, and to output meshes using the "Merge opaque meshes only" setting. When exporting, be sure to note the position of your drawing relative to the origin point of x=0, y=0. When displaying vector art in Pixi, the art will be centered around this origin point, so you may have to move your drawing before exporting so that the origin point is a reasonable location. 
 
 ### 2. Include the plugin code
 
