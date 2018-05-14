@@ -6,9 +6,13 @@
     "scripts": {
         "start": "http-server . -p 8080 -c-1",
         "build": "rollup src/index.js -m -f iife -o build/pixi-omber-gltf2-vector.js -n PIXI.omber",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run build",
+        "test": "electron-mocha --renderer ./test"
     },
-    "devDependencies": {
-        "rollup": "^0.43.0"
+	"devDependencies": {
+		"pixi.js": "^4.7.3",
+        "rollup": "^0.43.0",
+        "electron-mocha": "^6.0.2",
+        "electron": "^2.0.0"
     }
 }
