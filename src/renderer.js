@@ -65,13 +65,13 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		this.renderer.state.pop();
 		this.isActive = false;
 	}
-	render(sprite) 
+	render(vectorMesh) 
     {
 		const gl = this.renderer.gl;
-        const gltf = sprite.gltf;
+        const gltf = vectorMesh.gltf;
         this.setupVaos(gl, gltf);
 		this.renderer.bindShader(this.shader);
-        this.renderVaos(gl, sprite, gltf);
+        this.renderVaos(gl, vectorMesh, gltf);
 	}
     setupVaos(gl, gltf) 
     {
@@ -139,7 +139,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         });
         gltf.vaosSetup = true;
     }
-    renderVaos(gl, sprite, gltf) 
+    renderVaos(gl, vectorMesh, gltf) 
     {
     	let zScale = -1.0;
     	if (gltf.zSeparation)
@@ -154,7 +154,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     		if (!('material' in primitive)) return;
     		const mat = gltf.json.materials[primitive.material];
     		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
-    			this.renderPrimitive(primitive, sprite, zScale, zOffset);
+    			this.renderPrimitive(primitive, vectorMesh, zScale, zOffset);
         });
     	// Then render transparent ones in order
     	gltf.walkScenePrimitives((primitive) => {
@@ -164,15 +164,15 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
         			return;
 			}
-            this.renderPrimitive(primitive, sprite, zScale, zOffset);
+            this.renderPrimitive(primitive, vectorMesh, zScale, zOffset);
         });
     	this.zNext += zSkip;
     }
-    renderPrimitive(primitive, sprite, zScale, zOffset)
+    renderPrimitive(primitive, vectorMesh, zScale, zOffset)
     {
         if (!primitive.vao) return;
         // Multiply the MVP matrix in advance instead of in shader
-        this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(sprite.worldTransform);
+        this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(vectorMesh.worldTransform);
 		let matrix = this.shader.transformMatrix4x4;
 		matrix[0] = this.shader.transformMatrix.a;
 		matrix[1] = this.shader.transformMatrix.b;
@@ -203,17 +203,21 @@ VectorMeshRenderer.prototype.zNext = 0.0;
 VectorMeshRenderer.prototype.zBufferSeparation = 1.0 / 32000;
 
 
-export class VectorMesh extends PIXI.Sprite 
+export class VectorMesh extends PIXI.Container 
 {
 	constructor(gltf) 
     {
-		super(null);
+		super();
         if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
-		this.pluginName = 'omber';
 		this.hits = new PIXI.Rectangle(this.gltf.min[0], -this.gltf.max[1], 
 				this.gltf.max[0] - this.gltf.min[0],
-				this.gltf.max[1] - this.gltf.min[1]); 
+				this.gltf.max[1] - this.gltf.min[1]);
+	}
+	_renderWebGL(renderer)
+	{
+		renderer.setObjectRenderer(renderer.plugins.omber);
+		renderer.plugins.omber.render(this);
 	}
 	// Omber isn't a good fit for the height/width/hitarea model used by Pixi.js
 	// because its glTF meshes have a default anchor point that isn't in the upper-left corner.
