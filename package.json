@@ -7,7 +7,8 @@
         "start": "http-server . -p 8080 -c-1",
         "build": "rollup src/index.js -m -f iife -o build/pixi-omber-gltf2-vector.js -n PIXI.omber",
         "prepublishOnly": "npm run build",
-        "test": "electron-mocha --renderer ./test"
+        "test": "electron-mocha --renderer ./test",
+        "test:debug": "electron-mocha --renderer --debug-brk --no-timeouts ./test"
     },
 	"devDependencies": {
 		"pixi.js": "^4.7.3",
