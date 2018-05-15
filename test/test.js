@@ -39,7 +39,9 @@ describe('pixi-omber-gltf2-vector', function() {
                 assert.strictEqual(pixels[(640*440 + 635) * 4 + 1], 0);
                 assert.strictEqual(pixels[(640*440 + 635) * 4 + 2], 0);
                 assert.strictEqual(pixels[(640*440 + 635) * 4 + 3], 255);
-                
+
+        		app.view.parentNode.removeChild(app.view);
+
             	done();
             });
 	});
@@ -82,4 +84,34 @@ describe('pixi-omber-gltf2-vector', function() {
             	done();
             });
 	});
+	
+	it('containsPoint', function(done) {
+		// Load up some vector art
+		PIXI.utils.skipHello();
+		let app = new PIXI.Application({width: 640, height: 480, antialias: false, autoStart: false});
+		let loader = new PIXI.loaders.Loader();
+        loader
+            .add('../../../example/girl.glb')
+            .load(function(loader, resources) {
+            	// Scale it and place it somewhere
+            	let mesh = new PIXI.omber.VectorMesh(resources['../../../example/girl.glb'].gltf);
+            	mesh.x = 100;
+            	mesh.y = 100;
+            	mesh.interactive = true;
+            	mesh.scale.set(0.1, 0.1);
+            	app.stage.addChild(mesh);
+            	app.render();
+            	
+            	// Mesh is in the range (-21, -60) to (55, 114) but placed at (100, 100)
+            	assert(app.renderer.plugins.interaction.hitTest(new PIXI.Point(100, 100)));
+            	assert(!app.renderer.plugins.interaction.hitTest(new PIXI.Point(70, 100)));
+            	assert(!app.renderer.plugins.interaction.hitTest(new PIXI.Point(160, 100)));
+            	assert(!app.renderer.plugins.interaction.hitTest(new PIXI.Point(100, 30)));
+            	assert(!app.renderer.plugins.interaction.hitTest(new PIXI.Point(100, 250)));
+            	assert(app.renderer.plugins.interaction.hitTest(new PIXI.Point(80, 50)));
+            	
+            	done();
+            });
+	});
+	
 });

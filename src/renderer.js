@@ -210,9 +210,6 @@ export class VectorMesh extends PIXI.Container
 		super();
         if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
-		this.hits = new PIXI.Rectangle(this.gltf.min[0], -this.gltf.max[1], 
-				this.gltf.max[0] - this.gltf.min[0],
-				this.gltf.max[1] - this.gltf.min[1]);
 	}
 	_renderWebGL(renderer)
 	{
@@ -233,9 +230,11 @@ export class VectorMesh extends PIXI.Container
 	set height(val) {
 		this.scale.y = val / (this.gltf.max[1] - this.gltf.min[1]);
 	}
-	get hitArea()
+	containsPoint(pt)
 	{
-		return this.hits;
+		const localPt = this.worldTransform.applyInverse(pt);
+		return localPt.x >= this.gltf.min[0] && localPt.x <= this.gltf.max[0]
+				&& localPt.y <= -this.gltf.min[1] && localPt.y >= -this.gltf.max[1];
 	}
 }
 
