@@ -222,10 +222,16 @@ export class VectorMesh extends PIXI.Container
 	// Omber isn't a good fit for the height/width/hitarea model used by Pixi.js
 	// because its glTF meshes have a default anchor point that isn't in the upper-left corner.
 	get width() {
-		return this.gltf.max[1] - this.gltf.min[1];
+		return this.scale.x * (this.gltf.max[0] - this.gltf.min[0]);
+	}
+	set width(val) {
+		this.scale.x = val / (this.gltf.max[0] - this.gltf.min[0]);
 	}
 	get height() {
-		return this.gltf.max[2] - this.gltf.min[2];
+		return this.scale.y * (this.gltf.max[1] - this.gltf.min[1]);
+	}
+	set height(val) {
+		this.scale.y = val / (this.gltf.max[1] - this.gltf.min[1]);
 	}
 	get hitArea()
 	{

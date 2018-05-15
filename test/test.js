@@ -43,4 +43,43 @@ describe('pixi-omber-gltf2-vector', function() {
             	done();
             });
 	});
+	
+	it('new loaders can open gltf', function(done) {
+		// Creates a new loader and checks if it can open a .glb file
+		PIXI.utils.skipHello();
+		let loader = new PIXI.loaders.Loader();
+        loader
+            .add('../../../example/refresh.glb')
+            .load(function(loader, resources) {
+            	assert(resources['../../../example/refresh.glb'].gltf);
+            	done();
+            });		
+	});
+	
+	it('height and width', function(done) {
+		// Load up some vector art and check its initial size
+		PIXI.utils.skipHello();
+		let loader = new PIXI.loaders.Loader();
+        loader
+            .add('../../../example/girl.glb')
+            .load(function(loader, resources) {
+            	let mesh = new PIXI.omber.VectorMesh(resources['../../../example/girl.glb'].gltf);
+            	
+            	assert(Math.abs(mesh.width - 765.7) < 0.1);
+            	assert(Math.abs(mesh.height - 1742.6) < 0.1);
+            	assert(Math.abs(mesh.scale.x - 1) < 0.01);
+            	assert(Math.abs(mesh.scale.y - 1) < 0.01);
+
+            	// Resize things by changing the width and height
+            	mesh.width = 1000;
+            	mesh.height = 100;
+            	
+            	assert(Math.abs(mesh.width - 1000) < 0.1);
+            	assert(Math.abs(mesh.height - 100) < 0.1);
+            	assert(Math.abs(mesh.scale.x - 1.306) < 0.01);
+            	assert(Math.abs(mesh.scale.y - 0.057) < 0.01);
+            	
+            	done();
+            });
+	});
 });
