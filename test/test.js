@@ -114,4 +114,34 @@ describe('pixi-omber-gltf2-vector', function() {
             });
 	});
 	
+	it('GltfModel.dispose', function(done) {
+		// Load up some vector art
+		PIXI.utils.skipHello();
+		let app = new PIXI.Application({width: 640, height: 480, antialias: false, autoStart: false});
+		let loader = new PIXI.loaders.Loader();
+        loader
+            .add('../../../example/girl.glb')
+            .load(function(loader, resources) {
+            	// Display the mesh
+            	let mesh = new PIXI.omber.VectorMesh(resources['../../../example/girl.glb'].gltf);
+            	app.stage.addChild(mesh);
+            	app.render();
+            	
+            	// Check that a VAO was created
+            	assert(app.renderer.plugins.omber.gltfVaoSetup.has(mesh.gltf));
+            	mesh.gltf.walkScenePrimitives((primitive) => {
+                	assert(app.renderer.plugins.omber.primitiveVaos.has(primitive));
+                });
+            	
+            	// Try to dispose the GltfModel and double-check that everything is gone
+            	mesh.gltf.dispose();
+            	assert(!app.renderer.plugins.omber.gltfVaoSetup.has(mesh.gltf));
+            	mesh.gltf.walkScenePrimitives((primitive) => {
+                	assert(!app.renderer.plugins.omber.primitiveVaos.has(primitive));
+                });
+            	
+            	done();
+            });
+	});
+	
 });

@@ -2,10 +2,15 @@ this.PIXI = this.PIXI || {};
 (function (exports) {
 'use strict';
 
-class Gltf 
+/**
+ * Class for holding a Gltf model
+ */
+
+class GltfModel extends PIXI.utils.EventEmitter
 {
     constructor(json, glbBuffer) 
     {
+    	super();
         this.json = json;
         this.glbBuffer = glbBuffer;
         // Calculate the min and max values of positions
@@ -28,38 +33,16 @@ class Gltf
         		this.zSeparation = this.json.asset.extras.OMBER_zSeparation; 
     	}
     }
-    
-    static loadGlb(resource) 
+
+    destroy()
     {
-		resource.omberMesh = true;
-		let dataView = new DataView(resource.data);
-		let magic = dataView.getUint32(0, true);
-		if (magic != 0x46546C67) return;  // 'glTF'
-		let version = dataView.getUint32(4, true);
-		if (version != 2) return;
-		let fileLength = dataView.getUint32(8, true);
-		let json = null;
-		let binBuffer = null;
-		for (let offset = 12; offset < fileLength;) 
-        {
-			let chunkLength = dataView.getUint32(offset, true);
-			let chunkType = dataView.getUint32(offset + 4, true);
-			if (chunkType == 0x4E4F534A)   // 'JSON'
-            {
-                json = JSON.parse(new TextDecoder().decode(new Uint8Array(resource.data, offset + 8,  chunkLength)));
-			} else if (chunkType == 0x004E4942)   // 'BIN'
-            {
-				binBuffer = new DataView(resource.data, offset + 8,  chunkLength);
-			}
-			offset = offset + 8 + chunkLength;
-		}
-        resource.gltf = this.parseGltf(json, binBuffer);
+    	this.dispose();
+    	super.destroy();
     }
     
-    static parseGltf(json, buffer) 
+    dispose()
     {
-        let gltf = new Gltf(json, buffer);
-        return gltf;
+    	this.emit('dispose', this);
     }
     
     walkScenePrimitives(primitiveHandler) 
@@ -68,7 +51,7 @@ class Gltf
         let sceneNum = 0;
         if ('scene' in gltfJson) sceneNum = gltfJson.scene;
         const scene = gltfJson.scenes[sceneNum];
-        scene.nodes.forEach( node => Gltf.walkNodesPrimitives(gltfJson, gltfJson.nodes[node], primitiveHandler));
+        scene.nodes.forEach( node => GltfModel.walkNodesPrimitives(gltfJson, gltfJson.nodes[node], primitiveHandler));
     }
     static walkNodesPrimitives(gltfJson, node, primitiveHandler) 
     {
@@ -89,28 +72,13 @@ class Gltf
             mesh.primitives.forEach( primitive => primitiveHandler(primitive) );
         }
     }
-
-}
-
-
-function omberGlbLoad(resource, next) 
-{
-    if (resource.data && resource.extension == 'glb')
+    
+    static parseGltf(json, buffer) 
     {
-        Gltf.loadGlb(resource);
+        let gltf = new GltfModel(json, buffer);
+        return gltf;
     }
-    next();
 }
-
-
-// New loaders will be configured to support loading .glb files.
-PIXI.loaders.Resource.setExtensionXhrType('glb', PIXI.loaders.Resource.XHR_RESPONSE_TYPE.BUFFER);
-PIXI.loaders.Resource.setExtensionLoadType('glb', PIXI.loaders.Resource.LOAD_TYPE.XHR);
-
-// The premade shared PIXI loader has already been created though (only new loaders 
-// will have .glb support added to it automatically), so .glb support needs to be 
-// added to the shared PIXI loader separately.
-PIXI.loader.use(omberGlbLoad);
 
 const VertexProgram = 
 `attribute vec3 aVertexPosition;
@@ -144,16 +112,32 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     {
 		super(renderer);
 		this.isActive = false;
-		this.renderer.addListener('prerender', () => {
-			// Reset the positions of objects in z buffer at the start of
-			// rendering
-			this.zNext = 1 - this.zBufferSeparation; 
-		});
+		
+		// Keep track of VAOs set-up for the meshes in a gltf
+		this.primitiveVaos = new Map();
+		this.gltfVaoSetup = new Set();
+		
+		this.renderer.on('prerender', this.onPrerender, this);
+	}
+	onPrerender()
+	{
+		// Reset the positions of objects in z buffer at the start of
+		// rendering
+		this.zNext = 1 - this.zBufferSeparation; 
 	}
 	onContextChange() 
     {
 		let gl = this.renderer.gl;
 		this.shader = new VectorMeshShader(gl);
+	}
+	destroy()
+	{
+		this.renderer.off('prerender', this.onPrerender, this);
+		if (this.shader)
+		{
+			this.shader.destroy();
+		}
+		this.shader = null;
 	}
 	start()
 	{
@@ -177,17 +161,17 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		this.renderer.state.pop();
 		this.isActive = false;
 	}
-	render(sprite) 
+	render(vectorMesh) 
     {
 		const gl = this.renderer.gl;
-        const gltf = sprite.gltf;
+        const gltf = vectorMesh.gltf;
         this.setupVaos(gl, gltf);
 		this.renderer.bindShader(this.shader);
-        this.renderVaos(gl, sprite, gltf);
+        this.renderVaos(gl, vectorMesh, gltf);
 	}
     setupVaos(gl, gltf) 
     {
-        if (gltf.vaosSetup) return;
+        if (this.gltfVaoSetup.has(gltf)) return;
         const renderer = this.renderer;
         
         gltf.walkScenePrimitives((primitive) => {
@@ -230,6 +214,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
             {
                 vao.addAttribute(vertexBuffer, this.shader.attributes.aColor, gl.UNSIGNED_BYTE, !!colorAccessor.normalized, bufferView.byteStride, colorAccessor.byteOffset);
             }
+            let indexBuffer;
             if (indexAccessor != null)
             {
                 // TODO: unwind properly if error
@@ -238,20 +223,29 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
                 // Only do glb right now
                 if ('uri' in gltf.json.buffers[idxBufferView.buffer]) return;
                 const idxArrayBuffer = buffer.slice(gltf.glbBuffer.byteOffset + idxBufferView.byteOffset, gltf.glbBuffer.byteOffset + idxBufferView.byteOffset + idxBufferView.byteLength);
-                const indicesBuffer = PIXI.glCore.GLBuffer.createIndexBuffer(gl, idxArrayBuffer, gl.STATIC_DRAW);
-                vao.addIndex(indicesBuffer);
+                indexBuffer = PIXI.glCore.GLBuffer.createIndexBuffer(gl, idxArrayBuffer, gl.STATIC_DRAW);
+                vao.addIndex(indexBuffer);
             }
             
             // Save the VAO
-            primitive.vao = vao;
+            let vaoCount;
             if (indexAccessor != null)
-                primitive.vaoCount = indexAccessor.count;
+            	vaoCount = indexAccessor.count;
             else
-                primitive.vaoCount = colorAccessor.count;
+            	vaoCount = colorAccessor.count;
+            this.primitiveVaos.set(primitive, 
+            		{
+            			vao: vao,
+            			vaoCount: vaoCount,
+            			vertexBuffer: vertexBuffer,
+            			indexBuffer: indexBuffer
+            		});
         });
-        gltf.vaosSetup = true;
+        // Mark that VAOs have been set-up for the gltf 
+        this.gltfVaoSetup.add(gltf);
+        gltf.on('dispose', this.onDisposeGltfVaos, this);
     }
-    renderVaos(gl, sprite, gltf) 
+    renderVaos(gl, vectorMesh, gltf) 
     {
     	let zScale = -1.0;
     	if (gltf.zSeparation)
@@ -266,7 +260,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     		if (!('material' in primitive)) return;
     		const mat = gltf.json.materials[primitive.material];
     		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
-    			this.renderPrimitive(primitive, sprite, zScale, zOffset);
+    			this.renderPrimitive(primitive, vectorMesh, zScale, zOffset);
         });
     	// Then render transparent ones in order
     	gltf.walkScenePrimitives((primitive) => {
@@ -276,15 +270,16 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
         		if (!('alphaMode' in mat) || mat.alphaMode == 'OPAQUE')
         			return;
 			}
-            this.renderPrimitive(primitive, sprite, zScale, zOffset);
+            this.renderPrimitive(primitive, vectorMesh, zScale, zOffset);
         });
     	this.zNext += zSkip;
     }
-    renderPrimitive(primitive, sprite, zScale, zOffset)
+    renderPrimitive(primitive, vectorMesh, zScale, zOffset)
     {
-        if (!primitive.vao) return;
+    	const vao = this.primitiveVaos.get(primitive);
+        if (!vao) return;
         // Multiply the MVP matrix in advance instead of in shader
-        this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(sprite.worldTransform);
+        this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(vectorMesh.worldTransform);
 		let matrix = this.shader.transformMatrix4x4;
 		matrix[0] = this.shader.transformMatrix.a;
 		matrix[1] = this.shader.transformMatrix.b;
@@ -303,10 +298,26 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		matrix[14] = zOffset;
 		matrix[15] = 1;
         this.shader.uniforms.transformMatrix = matrix;
-        this.renderer.bindVao(primitive.vao);
-        primitive.vao.draw(this.renderer.gl.TRIANGLES, primitive.vaoCount, 0);
+        this.renderer.bindVao(vao.vao);
+        vao.vao.draw(this.renderer.gl.TRIANGLES, vao.vaoCount, 0);
     }
     
+    // When a GltfModel is disposed, we need to clear all the WebGL VAOs associated
+    // with it
+    onDisposeGltfVaos(gltf)
+    {
+    	gltf.off('dispose', this.onDisposeGltfVaos, this);
+
+    	// Destroy the VAOs and other GL buffers for each primitive
+    	gltf.walkScenePrimitives((primitive) => {
+        	const vao = this.primitiveVaos.get(primitive);
+        	vao.vao.destroy();
+        	vao.vertexBuffer.destroy();
+        	if (vao.indexBuffer) vao.indexBuffer.destroy();
+            this.primitiveVaos.delete(primitive);
+        });
+        this.gltfVaoSetup.delete(gltf);
+    }
 }
 VectorMeshRenderer.prototype.shader = null;
 VectorMeshRenderer.prototype.zNext = 0.0;
@@ -315,29 +326,38 @@ VectorMeshRenderer.prototype.zNext = 0.0;
 VectorMeshRenderer.prototype.zBufferSeparation = 1.0 / 32000;
 
 
-class VectorMesh extends PIXI.Sprite 
+class VectorMesh extends PIXI.Container 
 {
 	constructor(gltf) 
     {
-		super(null);
-        if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
+		super();
+        if (!(gltf instanceof GltfModel)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
-		this.pluginName = 'omber';
-		this.hits = new PIXI.Rectangle(this.gltf.min[0], -this.gltf.max[1], 
-				this.gltf.max[0] - this.gltf.min[0],
-				this.gltf.max[1] - this.gltf.min[1]); 
+	}
+	_renderWebGL(renderer)
+	{
+		renderer.setObjectRenderer(renderer.plugins.omber);
+		renderer.plugins.omber.render(this);
 	}
 	// Omber isn't a good fit for the height/width/hitarea model used by Pixi.js
 	// because its glTF meshes have a default anchor point that isn't in the upper-left corner.
 	get width() {
-		return this.gltf.max[1] - this.gltf.min[1];
+		return this.scale.x * (this.gltf.max[0] - this.gltf.min[0]);
+	}
+	set width(val) {
+		this.scale.x = val / (this.gltf.max[0] - this.gltf.min[0]);
 	}
 	get height() {
-		return this.gltf.max[2] - this.gltf.min[2];
+		return this.scale.y * (this.gltf.max[1] - this.gltf.min[1]);
 	}
-	get hitArea()
+	set height(val) {
+		this.scale.y = val / (this.gltf.max[1] - this.gltf.min[1]);
+	}
+	containsPoint(pt)
 	{
-		return this.hits;
+		const localPt = this.worldTransform.applyInverse(pt);
+		return localPt.x >= this.gltf.min[0] && localPt.x <= this.gltf.max[0]
+				&& localPt.y <= -this.gltf.min[1] && localPt.y >= -this.gltf.max[1];
 	}
 }
 
@@ -345,9 +365,56 @@ class VectorMesh extends PIXI.Sprite
 // WebGL only
 PIXI.WebGLRenderer.registerPlugin('omber', VectorMeshRenderer);
 
+function loadGlb(resource) 
+{
+	resource.omberMesh = true;
+	let dataView = new DataView(resource.data);
+	let magic = dataView.getUint32(0, true);
+	if (magic != 0x46546C67) return;  // 'glTF'
+	let version = dataView.getUint32(4, true);
+	if (version != 2) return;
+	let fileLength = dataView.getUint32(8, true);
+	let json = null;
+	let binBuffer = null;
+	for (let offset = 12; offset < fileLength;) 
+    {
+		let chunkLength = dataView.getUint32(offset, true);
+		let chunkType = dataView.getUint32(offset + 4, true);
+		if (chunkType == 0x4E4F534A)   // 'JSON'
+        {
+            json = JSON.parse(new TextDecoder().decode(new Uint8Array(resource.data, offset + 8,  chunkLength)));
+		} else if (chunkType == 0x004E4942)   // 'BIN'
+        {
+			binBuffer = new DataView(resource.data, offset + 8,  chunkLength);
+		}
+		offset = offset + 8 + chunkLength;
+	}
+    resource.gltf = GltfModel.parseGltf(json, binBuffer);
+}
+
+function omberGlbLoad(resource, next) 
+{
+    if (resource.data && resource.extension == 'glb')
+    {
+        loadGlb(resource);
+    }
+    next();
+}
+
+
+// New loaders will be configured to support loading .glb files.
+PIXI.loaders.Resource.setExtensionXhrType('glb', PIXI.loaders.Resource.XHR_RESPONSE_TYPE.BUFFER);
+PIXI.loaders.Resource.setExtensionLoadType('glb', PIXI.loaders.Resource.LOAD_TYPE.XHR);
+PIXI.loaders.Loader.addPixiMiddleware(() => omberGlbLoad);
+
+// The premade shared PIXI loader has already been created though (only new loaders 
+// will have .glb support added to it automatically), so .glb support needs to be 
+// added to the shared PIXI loader separately.
+PIXI.loader.use(omberGlbLoad);
+
 exports.omberGlbLoad = omberGlbLoad;
 exports.VectorMesh = VectorMesh;
-exports.Gltf = Gltf;
+exports.GltfModel = GltfModel;
 
 }((this.PIXI.omber = this.PIXI.omber || {})));
 //# sourceMappingURL=pixi-omber-gltf2-vector.js.map

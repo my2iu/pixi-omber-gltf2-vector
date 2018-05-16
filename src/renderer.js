@@ -32,6 +32,11 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     {
 		super(renderer);
 		this.isActive = false;
+		
+		// Keep track of VAOs set-up for the meshes in a gltf
+		this.primitiveVaos = new Map();
+		this.gltfVaoSetup = new Set();
+		
 		this.renderer.on('prerender', this.onPrerender, this);
 	}
 	onPrerender()
@@ -86,7 +91,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 	}
     setupVaos(gl, gltf) 
     {
-        if (gltf.vaosSetup) return;
+        if (this.gltfVaoSetup.has(gltf)) return;
         const renderer = this.renderer;
         
         gltf.walkScenePrimitives((primitive) => {
@@ -129,6 +134,7 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
             {
                 vao.addAttribute(vertexBuffer, this.shader.attributes.aColor, gl.UNSIGNED_BYTE, !!colorAccessor.normalized, bufferView.byteStride, colorAccessor.byteOffset);
             }
+            let indexBuffer;
             if (indexAccessor != null)
             {
                 // TODO: unwind properly if error
@@ -137,18 +143,27 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
                 // Only do glb right now
                 if ('uri' in gltf.json.buffers[idxBufferView.buffer]) return;
                 const idxArrayBuffer = buffer.slice(gltf.glbBuffer.byteOffset + idxBufferView.byteOffset, gltf.glbBuffer.byteOffset + idxBufferView.byteOffset + idxBufferView.byteLength);
-                const indicesBuffer = PIXI.glCore.GLBuffer.createIndexBuffer(gl, idxArrayBuffer, gl.STATIC_DRAW);
-                vao.addIndex(indicesBuffer);
+                indexBuffer = PIXI.glCore.GLBuffer.createIndexBuffer(gl, idxArrayBuffer, gl.STATIC_DRAW);
+                vao.addIndex(indexBuffer);
             }
             
             // Save the VAO
-            primitive.vao = vao;
+            let vaoCount;
             if (indexAccessor != null)
-                primitive.vaoCount = indexAccessor.count;
+            	vaoCount = indexAccessor.count;
             else
-                primitive.vaoCount = colorAccessor.count;
+            	vaoCount = colorAccessor.count;
+            this.primitiveVaos.set(primitive, 
+            		{
+            			vao: vao,
+            			vaoCount: vaoCount,
+            			vertexBuffer: vertexBuffer,
+            			indexBuffer: indexBuffer
+            		});
         });
-        gltf.vaosSetup = true;
+        // Mark that VAOs have been set-up for the gltf 
+        this.gltfVaoSetup.add(gltf);
+        gltf.on('dispose', this.onDisposeGltfVaos, this);
     }
     renderVaos(gl, vectorMesh, gltf) 
     {
@@ -181,7 +196,8 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     }
     renderPrimitive(primitive, vectorMesh, zScale, zOffset)
     {
-        if (!primitive.vao) return;
+    	const vao = this.primitiveVaos.get(primitive);
+        if (!vao) return;
         // Multiply the MVP matrix in advance instead of in shader
         this.renderer._activeRenderTarget.projectionMatrix.copy(this.shader.transformMatrix).append(vectorMesh.worldTransform);
 		let matrix = this.shader.transformMatrix4x4;
@@ -202,10 +218,26 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
 		matrix[14] = zOffset;
 		matrix[15] = 1;
         this.shader.uniforms.transformMatrix = matrix;
-        this.renderer.bindVao(primitive.vao);
-        primitive.vao.draw(this.renderer.gl.TRIANGLES, primitive.vaoCount, 0);
+        this.renderer.bindVao(vao.vao);
+        vao.vao.draw(this.renderer.gl.TRIANGLES, vao.vaoCount, 0);
     }
     
+    // When a GltfModel is disposed, we need to clear all the WebGL VAOs associated
+    // with it
+    onDisposeGltfVaos(gltf)
+    {
+    	gltf.off('dispose', this.onDisposeGltfVaos, this);
+
+    	// Destroy the VAOs and other GL buffers for each primitive
+    	gltf.walkScenePrimitives((primitive) => {
+        	const vao = this.primitiveVaos.get(primitive);
+        	vao.vao.destroy();
+        	vao.vertexBuffer.destroy();
+        	if (vao.indexBuffer) vao.indexBuffer.destroy();
+            this.primitiveVaos.delete(primitive);
+        });
+        this.gltfVaoSetup.delete(gltf);
+    }
 }
 VectorMeshRenderer.prototype.shader = null;
 VectorMeshRenderer.prototype.zNext = 0.0;

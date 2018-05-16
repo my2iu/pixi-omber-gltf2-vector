@@ -2,10 +2,11 @@
  * Class for holding a Gltf model
  */
 
-export class GltfModel
+export class GltfModel extends PIXI.utils.EventEmitter
 {
     constructor(json, glbBuffer) 
     {
+    	super();
         this.json = json;
         this.glbBuffer = glbBuffer;
         // Calculate the min and max values of positions
@@ -28,11 +29,16 @@ export class GltfModel
         		this.zSeparation = this.json.asset.extras.OMBER_zSeparation; 
     	}
     }
-    
-    static parseGltf(json, buffer) 
+
+    destroy()
     {
-        let gltf = new GltfModel(json, buffer);
-        return gltf;
+    	this.dispose();
+    	super.destroy();
+    }
+    
+    dispose()
+    {
+    	this.emit('dispose', this);
     }
     
     walkScenePrimitives(primitiveHandler) 
@@ -62,5 +68,10 @@ export class GltfModel
             mesh.primitives.forEach( primitive => primitiveHandler(primitive) );
         }
     }
-
+    
+    static parseGltf(json, buffer) 
+    {
+        let gltf = new GltfModel(json, buffer);
+        return gltf;
+    }
 }
