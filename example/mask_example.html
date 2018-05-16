@@ -1,0 +1,89 @@
+<html>
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.3/pixi.min.js"></script>
+        <script src="../build/pixi-omber-gltf2-vector.js"></script>
+        <script>
+            let app;
+        	const vals = [1, 20, 50, 100, 80, 120, 125, 90, 150, 170, 200];
+            
+            function whenReady()
+            {
+                // Create a PIXI canvas where things will be drawn
+                app = new PIXI.Application({width: 640, height: 480, antialias: true, backgroundColor: 0xFFFFFF});
+                document.body.appendChild(app.view);
+                
+                // Start loading things
+                PIXI.loader
+                    .add('refresh.glb')
+                    .add('gradient_transparentblue.glb')
+                    .load(start);
+            }
+
+            function start(loader, resources)
+            {
+                // Load a square gradient that goes from blue to transparent
+                let mesh = new PIXI.omber.VectorMesh(resources['gradient_transparentblue.glb'].gltf);
+                mesh.x = 0;
+                mesh.y = 50;
+                mesh.width = 640;
+                mesh.height = 250;
+                app.stage.addChild(mesh);
+                
+                // Mask it out with the shape of a graph
+                let mask = new PIXI.Graphics();
+            	mask.clear();
+                mask.beginFill(0xffffff, 0.5);
+                mask.moveTo(0, 300);
+                drawLine(mask, 0);
+                mask.lineTo((vals.length - 1) * 50, 300);
+                mask.closePath();
+                
+                mesh.mask = mask;
+                
+                // Add a line at the top of the graph
+                let line = new PIXI.Graphics();
+                line.lineStyle(5, 0xa5dcf0);
+                line.moveTo(0, 300);
+                drawLine(line, 0);
+                app.stage.addChild(line);
+
+                // Animate the graph as it stretches up
+                let time = 0;
+                app.ticker.add(delta => {
+                	time += delta;
+                	let anim = time / 100;
+                	if (anim > 1) anim = 1;
+                	
+                	// Not really necessary, but adjust the top of the gradient so that the top is the darkest blue
+                	mesh.height = 200 * anim + 50;
+                	mesh.y = 300 - mesh.height;
+                	
+                	// Stretch the graph up
+                	mask.clear();
+                    mask.beginFill(0xffffff, 0.5);
+                    mask.moveTo(0, 300);
+                    drawLine(mask, anim);
+                    mask.lineTo((vals.length - 1) * 50, 300);
+                    mask.closePath();
+                    
+                    // Move the line up too
+                    line.clear();
+                    line.lineStyle(5, 0xa5dcf0);
+                    line.moveTo(0, 300);
+                    drawLine(line, anim);
+                });
+            }
+            
+            function drawLine(g, time)
+            {
+            	if (time > 1) time = 1;
+                for (let n = 0; n < vals.length; n++)
+               		g.lineTo(n * 50, 300 - vals[n] * time);
+            }
+            
+            window.onload = whenReady;
+        </script>
+    </head>
+    <body>
+    </body>
+</html>
