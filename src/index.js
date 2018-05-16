@@ -1,4 +1,5 @@
+import {GltfModel} from './gltf_model.js';
 import {VectorMesh} from './renderer.js';
-import {omberGlbLoad,Gltf} from "./loader.js";
+import {omberGlbLoad} from "./loader.js";
 
-export {omberGlbLoad, VectorMesh, Gltf};
+export {omberGlbLoad, VectorMesh, GltfModel};

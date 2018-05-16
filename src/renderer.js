@@ -1,4 +1,4 @@
-import {Gltf} from './loader.js';
+import {GltfModel} from './gltf_model.js';
 
 const VertexProgram = 
 `attribute vec3 aVertexPosition;
@@ -32,16 +32,27 @@ class VectorMeshRenderer extends PIXI.ObjectRenderer
     {
 		super(renderer);
 		this.isActive = false;
-		this.renderer.addListener('prerender', () => {
-			// Reset the positions of objects in z buffer at the start of
-			// rendering
-			this.zNext = 1 - this.zBufferSeparation; 
-		});
+		this.renderer.on('prerender', this.onPrerender, this);
+	}
+	onPrerender()
+	{
+		// Reset the positions of objects in z buffer at the start of
+		// rendering
+		this.zNext = 1 - this.zBufferSeparation; 
 	}
 	onContextChange() 
     {
 		let gl = this.renderer.gl;
 		this.shader = new VectorMeshShader(gl);
+	}
+	destroy()
+	{
+		this.renderer.off('prerender', this.onPrerender, this);
+		if (this.shader)
+		{
+			this.shader.destroy();
+		}
+		this.shader = null;
 	}
 	start()
 	{
@@ -208,7 +219,7 @@ export class VectorMesh extends PIXI.Container
 	constructor(gltf) 
     {
 		super();
-        if (!(gltf instanceof Gltf)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
+        if (!(gltf instanceof GltfModel)) throw 'Expecting GLTF data loaded from Omber GLTF loader';
         this.gltf = gltf;
 	}
 	_renderWebGL(renderer)
