@@ -273,6 +273,11 @@ export class VectorMesh extends PIXI.Container
 	set height(val) {
 		this.scale.y = val / (this.gltf.max[1] - this.gltf.min[1]);
 	}
+	_calculateBounds()
+	{
+		this._bounds.addPoint(new PIXI.Point(this.gltf.min[0], -this.gltf.max[1]));
+		this._bounds.addPoint(new PIXI.Point(this.gltf.max[0], -this.gltf.min[1]));
+	}
 	containsPoint(pt)
 	{
 		const localPt = this.worldTransform.applyInverse(pt);
