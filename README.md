@@ -49,3 +49,13 @@ function start(loader, resources) {
 ### 5. Basic Pixi operations are supported
 
 The regular Pixi transforms are currently supported by `VectorMesh`. For example, you can assign `x`, `y`, `rotation`, `scale` values on a mesh to move it around the screen. Basic rectangular hitboxes for detecting touches and clicks on vector objects are also supported.
+
+
+
+## Examples
+
+Various examples are provided that demonstrate how the PIXI plugin can be used.
+
+- [Basic loading of vector art into PIXI.js](example/example.html)
+- [Use of vector art and masks to draw a gradient-shaded area chart](example/mask_example.html)
+- [Using Omber vector art as regular HTML images by rendering them at runtime with PIXI.js](example/html_img_example.html)
