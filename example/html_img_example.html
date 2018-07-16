@@ -20,12 +20,12 @@
             {
                 // Get the vector drawing that we want to use as an image
                 let refresh = new PIXI.omber.VectorMesh(resources['refresh.glb'].gltf);
-                // Choose a desired size for the vector image. We make two adjustments to the size
-                // The first is the render everything at 2x the normal size because the default
-                // WebGL renderer doesn't support anti-aliasing. We must render a larger image than
-                // necessary, and let the browser downsample it. On high resolution screens, we
-                // also adjust the image size because one "pixel" may actually be made up of more than 
-                // one real pixels on the screen.
+                // Choose a desired size for the vector image. We make two adjustments to the size.
+                // The first is to render everything at 2x the normal size because WebGL 1.0 doesn't 
+                // support anti-aliasing for render textures. We must render a larger image than
+                // necessary, and let the browser downsample it. The second is for high resolution
+                // screens. We must adjust the image size because one "pixel" may actually be made 
+                // up of more than one real pixels on the screen.
                 let pixelRatio = 2 * (window.devicePixelRatio || 1);
                 let imgWidth = 20, imgHeight = 20;
                 imgWidth *= pixelRatio;
