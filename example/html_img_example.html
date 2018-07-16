@@ -1,0 +1,59 @@
+<html>
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.3/pixi.min.js"></script>
+        <script src="../build/pixi-omber-gltf2-vector.js"></script>
+        <script>
+            let renderer;
+            
+            function whenReady()
+            {
+            	// Size of renderer doesn't matter since we're rendering to a texture
+            	renderer = new PIXI.WebGLRenderer({width: 8, height: 8, resolution: 1});
+                
+                // Start loading things
+                PIXI.loader
+                    .add('refresh.glb')
+                    .load(start);
+            }
+
+            function start(loader, resources)
+            {
+                // Get the vector drawing that we want to use as an image
+                let refresh = new PIXI.omber.VectorMesh(resources['refresh.glb'].gltf);
+                // Choose a desired size for the vector image. We make two adjustments to the size
+                // The first is the render everything at 2x the normal size because the default
+                // WebGL renderer doesn't support anti-aliasing. We must render a larger image than
+                // necessary, and let the browser downsample it. On high resolution screens, we
+                // also adjust the image size because one "pixel" may actually be made up of more than 
+                // one real pixels on the screen.
+                let pixelRatio = 2 * (window.devicePixelRatio || 1);
+                let imgWidth = 20, imgHeight = 20;
+                imgWidth *= pixelRatio;
+                imgHeight *= pixelRatio;
+                refresh.width = imgWidth;
+                refresh.height = imgHeight;
+                // Center the vector drawing in the image
+                refresh.x = -refresh.gltf.min[0] * refresh.scale.x;
+                refresh.y = -refresh.gltf.min[1] * refresh.scale.y;
+                
+                // Render out the vector drawing to an image
+                let renderTexture = PIXI.RenderTexture.create(imgWidth, imgHeight);
+                renderer.render(refresh, renderTexture);
+                let imageUrl = renderer.extract.base64(renderTexture);
+                renderTexture.destroy(true);
+                refresh.destroy();
+                
+                // Swap in the rendered image into the HTML.
+                document.querySelector("#html_image").src = imageUrl;
+                // Scale down the size of the image so that it is at maximum resolution 
+                document.querySelector("#html_image").width = imgWidth / pixelRatio;
+            }
+            
+            window.onload = whenReady;
+        </script>
+    </head>
+    <body>
+    	Here is an Omber vector drawing <img id="html_image"> that is rendered out and
+    	used in an HTML image tag. 
+    </body>
+</html>
