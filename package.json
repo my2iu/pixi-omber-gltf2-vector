@@ -1,6 +1,6 @@
 {
     "name": "pixi-omber-gltf2-vector",
-    "version":"0.0.1",
+    "version": "0.0.1",
     "description": "Pixi.js library for using vector art created in Omber that's saved in glTF 2.0 format",
     "author": "Ming-Yee Iu",
     "scripts": {
@@ -10,10 +10,10 @@
         "test": "electron-mocha --renderer ./test",
         "test:debug": "electron-mocha --renderer --debug-brk --no-timeouts ./test"
     },
-	"devDependencies": {
-		"pixi.js": "^4.7.3",
-        "rollup": "^0.43.0",
-        "electron-mocha": "^10.0.0",
-        "electron": "^12.0.2"
+    "devDependencies": {
+        "pixi.js": "^4.7.3",
+        "rollup": "^2.70.2",
+        "electron-mocha": "^11.0.2",
+        "electron": "^18.1.0"
     }
 }
