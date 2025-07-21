@@ -11,9 +11,9 @@
         "test:debug": "electron-mocha --renderer --debug-brk --no-timeouts ./test"
     },
     "devDependencies": {
+        "electron": "^37.2.3",
+        "electron-mocha": "^13.1.0",
         "pixi.js": "^4.7.3",
-        "rollup": "^2.70.2",
-        "electron-mocha": "^11.0.2",
-        "electron": "^22.3.19"
+        "rollup": "^4.45.1"
     }
 }
